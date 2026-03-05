@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 // ─── Types ────────────────────────────────────────────────────────
 
 type ViewType = 'broken' | 'login' | 'vault'
+type VaultId = 1 | 2 | 3
 
 interface VaultItem {
   _id: string
@@ -16,6 +17,7 @@ interface VaultItem {
 
 interface PageProps {
   initialView: ViewType
+  vaultId: VaultId
 }
 
 // ─── Shared Styles ────────────────────────────────────────────────
@@ -74,10 +76,12 @@ Node uptime:  0s`}</pre>
 
 // ─── Login Page ───────────────────────────────────────────────────
 
-function LoginPage({ onSuccess }: { onSuccess: () => void }) {
+function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: VaultId }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  const loginEndpoint = vaultId === 1 ? '/api/auth/login' : vaultId === 2 ? '/api/auth/login2' : '/api/auth/login3'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,7 +90,7 @@ function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setError(false)
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(loginEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -138,7 +142,7 @@ Kernel Index: 0xF91A2
 
 // ─── Vault Page ───────────────────────────────────────────────────
 
-function VaultPage({ onLogout }: { onLogout: () => void }) {
+function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: VaultId }) {
   const [items, setItems] = useState<VaultItem[]>([])
   const [images, setImages] = useState<Record<string, string>>({})
   const [showAdd, setShowAdd] = useState(false)
@@ -148,7 +152,17 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
   const [saving, setSaving] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
+  const [terminating, setTerminating] = useState(false)
+  const [superTerminating, setSuperTerminating] = useState(false)
   const blobRefs = useRef<string[]>([])
+
+  const itemsEndpoint = vaultId === 1 ? '/api/vault/items' : vaultId === 2 ? '/api/vault2/items' : '/api/vault3/items'
+  const logoutEndpoint = vaultId === 1 ? '/api/auth/logout' : vaultId === 2 ? '/api/auth/logout2' : '/api/auth/logout3'
+
+  const fetchItems = async () => {
+    const res = await fetch(itemsEndpoint)
+    if (res.ok) setItems(await res.json())
+  }
 
   useEffect(() => {
     fetchItems()
@@ -156,11 +170,6 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
       blobRefs.current.forEach(u => URL.revokeObjectURL(u))
     }
   }, [])
-
-  const fetchItems = async () => {
-    const res = await fetch('/api/vault/items')
-    if (res.ok) setItems(await res.json())
-  }
 
   const copyCode = async (item: VaultItem) => {
     try {
@@ -206,7 +215,7 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
       if (up.ok) imageId = (await up.json()).imageId
     }
 
-    const res = await fetch('/api/vault/items', {
+    const res = await fetch(itemsEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: newTitle.trim(), code: newCode, imageId }),
@@ -229,13 +238,65 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
 
   const deleteItem = async (id: string) => {
     if (!confirm('Delete this item?')) return
-    const res = await fetch(`/api/vault/items?id=${id}`, { method: 'DELETE' })
+    const res = await fetch(`${itemsEndpoint}?id=${id}`, { method: 'DELETE' })
     if (res.ok) setItems(prev => prev.filter(i => i._id !== id))
   }
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    await fetch(logoutEndpoint, { method: 'POST' })
     onLogout()
+  }
+
+  const handleTerminateOthers = async () => {
+    const confirmed = confirm('Terminate all other active sessions? Your current session will remain active.')
+    if (!confirmed) return
+    setTerminating(true)
+    setStatus('Terminating...')
+    try {
+      const res = await fetch('/api/auth/terminate-others', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vault: vaultId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setStatus(data.terminated > 0
+          ? `Terminated ${data.terminated} other session(s).`
+          : 'No other sessions found.')
+      } else {
+        setStatus('Failed to terminate sessions.')
+      }
+    } catch {
+      setStatus('Error.')
+    } finally {
+      setTerminating(false)
+      setTimeout(() => setStatus(''), 3000)
+    }
+  }
+
+  const handleSuperTerminate = async () => {
+    const confirmed = confirm(
+      '⚠️ SUPER TERMINATE: This will log out ALL sessions across ALL 3 vaults.\nYour own current session will remain active.\n\nAre you sure?'
+    )
+    if (!confirmed) return
+    setSuperTerminating(true)
+    setStatus('Super terminating...')
+    try {
+      const res = await fetch('/api/auth/super-terminate', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setStatus(data.terminated > 0
+          ? `Super terminated ${data.terminated} session(s) across all vaults.`
+          : 'No other sessions found anywhere.')
+      } else {
+        setStatus('Super terminate failed.')
+      }
+    } catch {
+      setStatus('Error.')
+    } finally {
+      setSuperTerminating(false)
+      setTimeout(() => setStatus(''), 4000)
+    }
   }
 
   return (
@@ -247,7 +308,23 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
         <button onClick={handleLogout} style={btn}>[ LOGOUT ]</button>
         {' '}
         <button onClick={() => setShowAdd(s => !s)} style={btn}>
-                    {showAdd ? '[ CANCEL ]' : '[ + ADD ITEM ]'}
+          {showAdd ? '[ CANCEL ]' : '[ + ADD ITEM ]'}
+        </button>
+        {' '}
+        <button
+          onClick={handleTerminateOthers}
+          disabled={terminating || superTerminating}
+          style={{ ...btn, color: '#888', borderColor: '#888', fontSize: '12px' }}
+        >
+          {terminating ? '[ TERMINATING... ]' : '[ TERMINATE OTHER SESSIONS ]'}
+        </button>
+        {' '}
+        <button
+          onClick={handleSuperTerminate}
+          disabled={superTerminating || terminating}
+          style={{ ...btn, color: '#c00', borderColor: '#c00', fontSize: '12px' }}
+        >
+          {superTerminating ? '[ SUPER TERMINATING... ]' : '[ ⚡ SUPER TERMINATE ALL ]'}
         </button>
         {status && <span style={{ marginLeft: '14px', color: '#555' }}>{status}</span>}
       </div>
@@ -382,18 +459,43 @@ function VaultPage({ onLogout }: { onLogout: () => void }) {
           )}
         </div>
       ))}
+
+      {/* ── PDF Link Option ── */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '16px',
+          right: '16px',
+          opacity: 0.5,
+        }}
+      >
+        <a
+          href="/api/pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            ...btn,
+            textDecoration: 'none',
+            fontSize: '11px',
+            color: '#000',
+          }}
+        >
+          [ PDF ]
+        </a>
+      </div>
     </div>
   )
 }
 
 // ─── Main Page ────────────────────────────────────────────────────
 
-const Home: NextPage<PageProps> = ({ initialView }) => {
+const Home: NextPage<PageProps> = ({ initialView, vaultId }) => {
   const [view, setView] = useState<ViewType>(initialView)
 
   if (view === 'login') {
     return (
       <LoginPage
+        vaultId={vaultId}
         onSuccess={() => setView('vault')}
       />
     )
@@ -402,6 +504,7 @@ const Home: NextPage<PageProps> = ({ initialView }) => {
   if (view === 'vault') {
     return (
       <VaultPage
+        vaultId={vaultId}
         onLogout={() => setView('broken')}
       />
     )
@@ -415,31 +518,43 @@ export default Home
 // ─── Server-Side Props ────────────────────────────────────────────
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => {
-  const { validateSession } = await import('../lib/session')
+  const { getDb } = await import('../lib/db')
+  const { sys, mode } = ctx.query
 
-  const token = ctx.req.cookies?.['vault_token']
-
-  // ── Already authenticated? Go straight to vault ──────────────
-  if (token) {
-    const valid = await validateSession(token)
-    if (valid) {
-      return { props: { initialView: 'vault' } }
-    }
+  // ── Helper: validate a session in any collection ──────────────
+  async function checkSession(cookieName: string, collection: string): Promise<boolean> {
+    const token = ctx.req.cookies?.[cookieName]
+    if (!token) return false
+    const db = await getDb()
+    const session = await db.collection(collection).findOne({ token })
+    if (!session || !session.active) return false
+    if (new Date() > new Date(session.expiresAt)) return false
+    return true
   }
 
-  // ── Check for secret access URL ───────────────────────────────
-  const { sys, mode, key } = ctx.query
+  // sys must always be 'repair' — otherwise show broken page
+  if (sys !== 'repair' || typeof mode !== 'string') {
+    return { props: { initialView: 'broken', vaultId: 1 } }
+  }
 
-  const isSecretUrl =
-    sys === 'repair' &&
-    mode === 'legacy' &&
-    typeof key === 'string' &&
-    key === process.env.SECRET_ACCESS_KEY
+  // ── Vault 1 (?111) ───────────────────────────────────────────
+  if (mode === process.env.SECRET_ACCESS_KEY) {
+    const valid = await checkSession('vault_token', 'sessions')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 1 } }
+  }
 
-  if (isSecretUrl) {
-    return { props: { initialView: 'login' } }
+  // ── Vault 2 (?222) ───────────────────────────────────────────
+  if (mode === process.env.VAULT2_ACCESS_KEY) {
+    const valid = await checkSession('vault2_token', 'sessions2')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 2 } }
+  }
+
+  // ── Vault 3 (?333) ───────────────────────────────────────────
+  if (mode === process.env.VAULT3_ACCESS_KEY) {
+    const valid = await checkSession('vault3_token', 'sessions3')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 3 } }
   }
 
   // ── Default: show broken page ─────────────────────────────────
-  return { props: { initialView: 'broken' } }
+  return { props: { initialView: 'broken', vaultId: 1 } }
 }

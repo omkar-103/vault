@@ -55,3 +55,21 @@ export async function invalidateAllSessions(): Promise<void> {
   const db = await getDb()
   await db.collection('sessions').updateMany({}, { $set: { active: false } })
 }
+
+/**
+ * Kills all active sessions in the given collection EXCEPT the caller's own.
+ * Returns the count of sessions terminated.
+ */
+export async function invalidateOtherSessions(
+  myToken: string,
+  collection: string = 'sessions'
+): Promise<number> {
+  const db = await getDb()
+  const result = await db
+    .collection(collection)
+    .updateMany(
+      { token: { $ne: myToken }, active: true },
+      { $set: { active: false } }
+    )
+  return result.modifiedCount
+}
