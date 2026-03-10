@@ -6,7 +6,7 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.next()
 
   // ── Strip fingerprinting headers ──────────────────────────────
-  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('X-Frame-Options', 'SAMEORIGIN')
   res.headers.set('X-Content-Type-Options', 'nosniff')
   res.headers.set('Referrer-Policy', 'no-referrer')
   res.headers.set(
@@ -15,7 +15,7 @@ export function middleware(req: NextRequest) {
   )
   res.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self' ws: wss:; font-src 'self' data:"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; frame-src 'self' blob:; object-src 'self' blob:; connect-src 'self' ws: wss:; font-src 'self' data:"
   )
   // Remove server fingerprint
   res.headers.delete('X-Powered-By')

@@ -33,7 +33,7 @@ export default async function handler(
         const items = await db
             .collection(COLLECTION)
             .find({})
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: 1 })
             .toArray()
 
         const serialized = items.map(doc => ({

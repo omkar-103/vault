@@ -1,10 +1,11 @@
-// pages/api/pdf.ts
-// Session-gated PDF server. The PDF file lives at _secure_data
-// but is served through this secure endpoint via POST to avoid logging.
+// pages/api/pdf-search.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 import fs from 'fs'
 import path from 'path'
 import { getDb } from '../../lib/db'
+
+// @ts-ignore
+import PDFParser from 'pdf2json'
 
 async function isVault2Authenticated(req: NextApiRequest): Promise<boolean> {
     const db = await getDb()
@@ -21,31 +22,45 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse
 ) {
-    // ONLY allow POST so it doesn't show up in URL bar or easy network GET traces
     if (req.method !== 'POST') return res.status(404).end()
 
     // ── Auth gate (Vault 2 only) ───────────────────────────────────
     const authed = await isVault2Authenticated(req)
     if (!authed) return res.status(404).end()
 
-    // ── Serve the PDF ──────────────────────────────────────────────
+    const { query } = req.body
+    if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: 'Missing query' })
+    }
+
     const pdfPath = path.join(process.cwd(), '_secure_data', 'project_documentation_v1.pdf.pdf')
 
     if (!fs.existsSync(pdfPath)) {
         return res.status(404).end()
     }
 
-    const stat = fs.statSync(pdfPath)
+    const pdfParser = new PDFParser(null, 1 as any);
 
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', 'inline; filename="secret_doc.pdf"')
-    res.setHeader('Content-Length', stat.size)
-    // Extreme aggressive cache prevention
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
-    res.setHeader('Pragma', 'no-cache')
-    res.setHeader('Expires', '0')
-    res.setHeader('X-Content-Type-Options', 'nosniff')
+    pdfParser.on("pdfParser_dataError", (errData: any) => {
+        console.error(errData.parserError);
+        res.status(500).json({ error: 'Search failed' });
+    });
 
-    const stream = fs.createReadStream(pdfPath)
-    stream.pipe(res)
+    pdfParser.on("pdfParser_dataReady", pdfData => {
+        const text = pdfParser.getRawTextContent()
+        
+        // Count occurrences (case-insensitive)
+        const regex = new RegExp(
+            // Escape special chars in search query
+            query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 
+            'gi'
+        )
+        
+        const matches = text.match(regex)
+        const count = matches ? matches.length : 0
+
+        res.status(200).json({ count })
+    });
+
+    pdfParser.loadPDF(pdfPath);
 }

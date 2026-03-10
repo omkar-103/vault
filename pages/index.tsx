@@ -154,6 +154,11 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   const [status, setStatus] = useState('')
   const [terminating, setTerminating] = useState(false)
   const [superTerminating, setSuperTerminating] = useState(false)
+  const [showPdf, setShowPdf] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchCount, setSearchCount] = useState<number | null>(null)
+  const [isSearchingPdf, setIsSearchingPdf] = useState(false)
+  const [iframeKey, setIframeKey] = useState(0)
   const blobRefs = useRef<string[]>([])
 
   const itemsEndpoint = vaultId === 1 ? '/api/vault/items' : vaultId === 2 ? '/api/vault2/items' : '/api/vault3/items'
@@ -170,6 +175,27 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
       blobRefs.current.forEach(u => URL.revokeObjectURL(u))
     }
   }, [])
+
+  // Auto-submit the hidden secure form when the PDF frame mounts or search updates
+  useEffect(() => {
+    if (showPdf) {
+        const form = document.getElementById('secure-pdf-form') as HTMLFormElement | null;
+        if (form) form.submit();
+    }
+  }, [showPdf, iframeKey]);
+
+  // Keyboard shortcut to close the secure document securely
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showPdf) {
+        setShowPdf(false);
+        setSearchCount(null);
+        setSearchQuery('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPdf]);
 
   const copyCode = async (item: VaultItem) => {
     try {
@@ -400,9 +426,17 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
             paddingLeft: '14px',
           }}
         >
-          <pre style={{ margin: '0 0 6px', fontWeight: 'bold' }}>
+          <div style={{ 
+            margin: '0 0 6px',
+            fontWeight: 'bold',
+            fontFamily: MONO,
+            fontSize: '14px',
+            whiteSpace: 'pre-wrap', 
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere'
+          }}>
             {`TITLE: ${item.title}`}
-          </pre>
+          </div>
 
           <div style={{ marginBottom: '6px' }}>
             <button
@@ -460,29 +494,151 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
         </div>
       ))}
 
-      {/* ── PDF Link Option ── */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '16px',
-          right: '16px',
-          opacity: 0.5,
-        }}
-      >
-        <a
-          href="/api/pdf"
-          target="_blank"
-          rel="noopener noreferrer"
+      {/* ── PDF Link Option (Vault 2 Only) ── */}
+      {vaultId === 2 && (
+        <div
           style={{
-            ...btn,
-            textDecoration: 'none',
-            fontSize: '11px',
-            color: '#000',
+            position: 'fixed',
+            bottom: '16px',
+            right: '16px',
+            opacity: 0.5,
           }}
         >
-          [ PDF ]
-        </a>
-      </div>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setShowPdf(true);
+            }}
+            style={{
+              ...btn,
+              fontSize: '11px',
+              color: '#000',
+            }}
+          >
+            [ PDF ]
+          </button>
+        </div>
+      )}
+
+      {/* ── PDF Popup Sub-System ── */}
+      {showPdf && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div style={{
+             width: '90%', 
+             maxWidth: '1200px', 
+             display: 'flex', 
+             justifyContent: 'space-between', 
+             alignItems: 'center',
+             marginBottom: '8px'
+          }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ color: '#fff', fontFamily: MONO, fontSize: '13px' }}>SEARCH PDF:</span>
+              <input
+                type="text"
+                placeholder="Enter word..."
+                disabled={isSearchingPdf}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    const val = e.currentTarget.value.trim();
+                    
+                    if (!val) {
+                      setSearchQuery('');
+                      setSearchCount(null);
+                      setIframeKey(k => k + 1); // Triggers re-render/re-submit without fragment
+                      return;
+                    }
+                    
+                    setIsSearchingPdf(true);
+                    setSearchQuery(val);
+                    
+                    try {
+                        const res = await fetch('/api/pdf-search', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: val })
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            setSearchCount(data.count);
+                        }
+                    } catch {
+                        setSearchCount(null)
+                    }
+
+                    // Incrementing the key completely unmounts and remounts the iframe,
+                    // which runs useEffect and violently pushes a fresh POST with the new #hash.
+                    setIframeKey(k => k + 1);
+                    setIsSearchingPdf(false);
+                  }
+                }}
+                style={{
+                  ...input,
+                  background: '#111',
+                  color: isSearchingPdf ? '#555' : '#fff',
+                  borderBottom: '1px solid #555',
+                  padding: '4px 8px',
+                  width: '200px'
+                }}
+              />
+              <span style={{ color: '#aaa', fontFamily: MONO, fontSize: '11px' }}>
+                {isSearchingPdf ? 'Searching...' : searchCount !== null ? `(${searchCount} found)` : '(Press Enter)'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowPdf(false);
+                setSearchCount(null);
+                setSearchQuery('');
+              }}
+              style={{
+                ...btn, 
+                background: '#fff', 
+                fontWeight: 'bold',
+                padding: '6px 12px'
+              }}
+            >
+              [ CLOSE FILE ]
+            </button>
+          </div>
+          
+          <form 
+            id="secure-pdf-form" 
+            target="secure-pdf-frame" 
+            action={`/api/pdf${searchQuery ? `#search=${encodeURIComponent(searchQuery)}` : ''}`}
+            method="POST" 
+            style={{ display: 'none' }} 
+          />
+          <iframe
+            key={iframeKey}
+            name="secure-pdf-frame"
+            id="secure-pdf-frame"
+            title="Secure Document Viewer"
+            style={{
+              width: '90%',
+              maxWidth: '1200px',
+              height: '85vh',
+              border: '1px solid #fff',
+              background: '#000',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -491,6 +647,40 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
 
 const Home: NextPage<PageProps> = ({ initialView, vaultId }) => {
   const [view, setView] = useState<ViewType>(initialView)
+
+  useEffect(() => {
+    // SECURITY FIX: Hide the sys/mode URL query parameters from the address bar, 
+    // so network admins casually looking at the screen, local browser history, 
+    // etc., will only see '/' in history, removing any traces.
+    // It keeps your 111, 222, 333 functionality perfectly identical.
+    if (window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+
+    // ── GHOST PANIC PROTOCOL ──
+    // Detects emergency hotkeys. If pressed, instantly self-destructs the UI
+    // and permanently invalidates the server session cookie in the background.
+    const handlePanic = (e: KeyboardEvent) => {
+      const isShiftZ = e.shiftKey && e.key.toLowerCase() === 'z';
+      const isAltX = e.altKey && e.key.toLowerCase() === 'x';
+      
+      if (isShiftZ || isAltX) {
+        // 1. Instantly hide all visual vault data by crashing to broken page
+        setView('broken');
+        
+        // 2. Eradicate the secure server session so a browser refresh won't restore access
+        const logoutEndpoint = 
+          vaultId === 1 ? '/api/auth/logout' : 
+          vaultId === 2 ? '/api/auth/logout2' : 
+                          '/api/auth/logout3';
+                          
+        fetch(logoutEndpoint, { method: 'POST' }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('keydown', handlePanic);
+    return () => window.removeEventListener('keydown', handlePanic);
+  }, [vaultId])
 
   if (view === 'login') {
     return (
