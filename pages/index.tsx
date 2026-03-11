@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 // ─── Types ────────────────────────────────────────────────────────
 
 type ViewType = 'broken' | 'login' | 'vault'
-type VaultId = 1 | 2 | 3
+type VaultId = 1 | 2 | 3 | 4
 
 interface VaultItem {
   _id: string
@@ -81,7 +81,7 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const loginEndpoint = vaultId === 1 ? '/api/auth/login' : vaultId === 2 ? '/api/auth/login2' : '/api/auth/login3'
+  const loginEndpoint = vaultId === 1 ? '/api/auth/login' : vaultId === 2 ? '/api/auth/login2' : vaultId === 3 ? '/api/auth/login3' : '/api/auth/login4'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -161,8 +161,8 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   const [iframeKey, setIframeKey] = useState(0)
   const blobRefs = useRef<string[]>([])
 
-  const itemsEndpoint = vaultId === 1 ? '/api/vault/items' : vaultId === 2 ? '/api/vault2/items' : '/api/vault3/items'
-  const logoutEndpoint = vaultId === 1 ? '/api/auth/logout' : vaultId === 2 ? '/api/auth/logout2' : '/api/auth/logout3'
+  const itemsEndpoint = vaultId === 1 ? '/api/vault/items' : vaultId === 2 ? '/api/vault2/items' : vaultId === 3 ? '/api/vault3/items' : '/api/vault4/items'
+  const logoutEndpoint = vaultId === 1 ? '/api/auth/logout' : vaultId === 2 ? '/api/auth/logout2' : vaultId === 3 ? '/api/auth/logout3' : '/api/auth/logout4'
 
   const fetchItems = async () => {
     const res = await fetch(itemsEndpoint)
@@ -302,7 +302,7 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
 
   const handleSuperTerminate = async () => {
     const confirmed = confirm(
-      '⚠️ SUPER TERMINATE: This will log out ALL sessions across ALL 3 vaults.\nYour own current session will remain active.\n\nAre you sure?'
+      '⚠️ SUPER TERMINATE: This will log out ALL sessions across ALL 4 vaults.\nYour own current session will remain active.\n\nAre you sure?'
     )
     if (!confirmed) return
     setSuperTerminating(true)
@@ -672,7 +672,8 @@ const Home: NextPage<PageProps> = ({ initialView, vaultId }) => {
         const logoutEndpoint = 
           vaultId === 1 ? '/api/auth/logout' : 
           vaultId === 2 ? '/api/auth/logout2' : 
-                          '/api/auth/logout3';
+          vaultId === 3 ? '/api/auth/logout3' :
+                          '/api/auth/logout4';
                           
         fetch(logoutEndpoint, { method: 'POST' }).catch(() => {});
       }
@@ -743,6 +744,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
   if (mode === process.env.VAULT3_ACCESS_KEY) {
     const valid = await checkSession('vault3_token', 'sessions3')
     return { props: { initialView: valid ? 'vault' : 'login', vaultId: 3 } }
+  }
+
+  // ── Vault 4 (?444) ───────────────────────────────────────────
+  if (mode === process.env.VAULT4_ACCESS_KEY) {
+    const valid = await checkSession('vault4_token', 'sessions4')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 4 } }
   }
 
   // ── Default: show broken page ─────────────────────────────────

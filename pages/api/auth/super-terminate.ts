@@ -1,5 +1,5 @@
 // pages/api/auth/super-terminate.ts
-// Kills ALL active sessions across ALL 3 vaults, EXCEPT the caller's own current session.
+// Kills ALL active sessions across ALL 4 vaults, EXCEPT the caller's own current session.
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getDb } from '../../../lib/db'
 
@@ -7,6 +7,7 @@ const ALL_VAULTS = [
     { cookie: 'vault_token', collection: 'sessions' },
     { cookie: 'vault2_token', collection: 'sessions2' },
     { cookie: 'vault3_token', collection: 'sessions3' },
+    { cookie: 'vault4_token', collection: 'sessions4' },
 ]
 
 async function getValidToken(req: NextApiRequest): Promise<{ token: string; collection: string } | null> {
@@ -37,7 +38,7 @@ export default async function handler(
 
     for (const v of ALL_VAULTS) {
         // For the caller's own vault: keep their own session alive
-        // For the other 2 vaults: kill everything
+        // For the other 3 vaults: kill everything
         const filter =
             v.collection === caller.collection
                 ? { token: { $ne: caller.token }, active: true }

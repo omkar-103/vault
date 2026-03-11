@@ -10,6 +10,8 @@ const NEEDED = new Set([
     'sessions',
     'sessions2',
     'sessions3',
+    'vaultitems4',
+    'sessions4',
     'vaultitems',
     'vaultitems2',
     'vaultitems3',

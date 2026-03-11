@@ -8,6 +8,7 @@ const VAULT_MAP: Record<string, { cookie: string; collection: string }> = {
     '1': { cookie: 'vault_token', collection: 'sessions' },
     '2': { cookie: 'vault2_token', collection: 'sessions2' },
     '3': { cookie: 'vault3_token', collection: 'sessions3' },
+    '4': { cookie: 'vault4_token', collection: 'sessions4' },
 }
 
 async function isValidToken(token: string, collection: string): Promise<boolean> {
@@ -24,7 +25,7 @@ export default async function handler(
 ) {
     if (req.method !== 'POST') return res.status(404).end()
 
-    // Which vault is calling — 1, 2, or 3
+    // Which vault is calling — 1, 2, 3, or 4
     const vault = String(req.body?.vault ?? '1')
     const map = VAULT_MAP[vault]
     if (!map) return res.status(404).end()
