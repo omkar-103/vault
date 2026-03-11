@@ -723,6 +723,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
     return true
   }
 
+  // ── Vault 4 (?444) SHORT URL ──────────────────────────────────
+  if (ctx.resolvedUrl?.includes(process.env.VAULT4_ACCESS_KEY || '?444')) {
+    const valid = await checkSession('vault4_token', 'sessions4')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 4 } }
+  }
+
   // sys must always be 'repair' — otherwise show broken page
   if (sys !== 'repair' || typeof mode !== 'string') {
     return { props: { initialView: 'broken', vaultId: 1 } }
@@ -744,12 +750,6 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
   if (mode === process.env.VAULT3_ACCESS_KEY) {
     const valid = await checkSession('vault3_token', 'sessions3')
     return { props: { initialView: valid ? 'vault' : 'login', vaultId: 3 } }
-  }
-
-  // ── Vault 4 (?444) ───────────────────────────────────────────
-  if (mode === process.env.VAULT4_ACCESS_KEY) {
-    const valid = await checkSession('vault4_token', 'sessions4')
-    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 4 } }
   }
 
   // ── Default: show broken page ─────────────────────────────────
