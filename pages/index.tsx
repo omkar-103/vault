@@ -110,7 +110,17 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   }
 
   return (
-    <div style={base}>
+    <div style={base} className={vaultId === 4 ? "vault4-container" : ""}>
+      {vaultId === 4 && (
+        <style>{`
+          html, body { background-color: #000 !important; }
+          .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
+          .vault4-container button { color: #fff !important; border-color: #fff !important; }
+          .vault4-container button:disabled { color: #666 !important; border-color: #666 !important; }
+          .vault4-container input { color: #fff !important; border-bottom-color: #fff !important; background: transparent !important; }
+          .vault4-container pre { color: #fff !important; }
+        `}</style>
+      )}
       <pre style={{ margin: '0 0 16px 0' }}>{`SYSTEM ARCHIVE
 Kernel Index: 0xF91A2
 
@@ -326,7 +336,21 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   }
 
   return (
-    <div style={{ ...base, maxWidth: '860px' }}>
+    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 ? "vault4-container" : ""}>
+      {vaultId === 4 && (
+        <style>{`
+          html, body { background-color: #000 !important; }
+          .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
+          .vault4-container button { color: #fff !important; border-color: #fff !important; }
+          .vault4-container button:disabled { color: #666 !important; border-color: #666 !important; }
+          .vault4-container input, .vault4-container textarea { color: #fff !important; border-color: #fff !important; background: #111 !important; }
+          .vault4-container hr { border-top-color: #fff !important; }
+          .vault4-container .vault-item { border-left-color: #fff !important; }
+          .vault4-container pre { color: #fff !important; }
+          .vault4-container pre.vault-code { background: #000 !important; color: #000 !important; border-color: #000 !important; }
+          .vault4-container pre.vault-code::selection { background: rgba(50, 151, 253, 0.5) !important; color: #fff !important; }
+        `}</style>
+      )}
       {/* ── Header ── */}
       <pre style={{ margin: '0 0 6px' }}>{'VAULT SYSTEM — ACTIVE'}</pre>
 
@@ -420,6 +444,7 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
       {items.map(item => (
         <div
           key={item._id}
+          className="vault-item"
           style={{
             marginBottom: '28px',
             borderLeft: '3px solid #000',
@@ -464,6 +489,7 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
           </div>
 
           <pre
+            className="vault-code"
             style={{
               margin: '8px 0 0',
               background: '#f4f4f4',
