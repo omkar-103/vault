@@ -110,8 +110,8 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   }
 
   return (
-    <div style={base} className={vaultId === 4 ? "vault4-container" : ""}>
-      {vaultId === 4 && (
+    <div style={base} className={vaultId === 4 || vaultId === 3 ? "vault4-container" : ""}>
+      {(vaultId === 4 || vaultId === 3) && (
         <style>{`
           html, body { background-color: #000 !important; }
           .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
@@ -336,8 +336,8 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   }
 
   return (
-    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 ? "vault4-container" : ""}>
-      {vaultId === 4 && (
+    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 || vaultId === 3 ? "vault4-container" : ""}>
+      {(vaultId === 4 || vaultId === 3) && (
         <style>{`
           html, body { background-color: #000 !important; }
           .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
@@ -749,6 +749,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
     return true
   }
 
+  // ── Vault 3 (?333) SHORT URL ──────────────────────────────────
+  if (ctx.resolvedUrl?.includes(process.env.VAULT3_ACCESS_KEY || '?333')) {
+    const valid = await checkSession('vault3_token', 'sessions3')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 3 } }
+  }
+
   // ── Vault 4 (?444) SHORT URL ──────────────────────────────────
   if (ctx.resolvedUrl?.includes(process.env.VAULT4_ACCESS_KEY || '?444')) {
     const valid = await checkSession('vault4_token', 'sessions4')
@@ -770,12 +776,6 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
   if (mode === process.env.VAULT2_ACCESS_KEY) {
     const valid = await checkSession('vault2_token', 'sessions2')
     return { props: { initialView: valid ? 'vault' : 'login', vaultId: 2 } }
-  }
-
-  // ── Vault 3 (?333) ───────────────────────────────────────────
-  if (mode === process.env.VAULT3_ACCESS_KEY) {
-    const valid = await checkSession('vault3_token', 'sessions3')
-    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 3 } }
   }
 
   // ── Default: show broken page ─────────────────────────────────
