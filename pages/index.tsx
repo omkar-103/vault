@@ -118,8 +118,8 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   }
 
   return (
-    <div style={base} className={vaultId === 4 || vaultId === 3 || vaultId === 5 ? "vault-dark-container" : ""}>
-      {(vaultId === 4 || vaultId === 3 || vaultId === 5) && (
+    <div style={base} className={[1, 3, 4, 5].includes(vaultId) ? "vault-dark-container" : ""}>
+      {[1, 3, 4, 5].includes(vaultId) && (
         <style>{`
           html, body { background-color: #000 !important; }
           .vault-dark-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
@@ -401,8 +401,8 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   }
 
   return (
-    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 || vaultId === 3 || vaultId === 5 ? "vault-dark-container" : ""}>
-      {(vaultId === 4 || vaultId === 3 || vaultId === 5) && (
+    <div style={{ ...base, maxWidth: '860px' }} className={[1, 3, 4, 5].includes(vaultId) ? "vault-dark-container" : ""}>
+      {[1, 3, 4, 5].includes(vaultId) && (
         <style>{`
           html, body { background-color: #000 !important; }
           .vault-dark-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
@@ -412,7 +412,7 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
           .vault-dark-container hr { border-top-color: #fff !important; }
           .vault-dark-container .vault-item { border-left-color: #fff !important; }
           .vault-dark-container pre { color: #fff !important; }
-          .vault-dark-container pre.vault-code { background: #000 !important; color: #ccc !important; border-color: #333 !important; }
+          .vault-dark-container pre.vault-code { background: #000 !important; color: #000 !important; border-color: #000 !important; }
           .vault-dark-container pre.vault-code::selection { background: rgba(50, 151, 253, 0.5) !important; color: #fff !important; }
         `}</style>
       )}
