@@ -1,6 +1,7 @@
 // lib/gridfs.ts
 import { GridFSBucket, ObjectId } from 'mongodb'
 import { Readable } from 'stream'
+import fs from 'fs'
 import clientPromise from './db'
 
 async function getBucket(): Promise<GridFSBucket> {
@@ -26,9 +27,29 @@ export async function storeImage(
   })
 }
 
+export async function storeFileFromPath(
+  filepath: string,
+  filename: string,
+  mimeType: string
+): Promise<string> {
+  const bucket = await getBucket()
+
+  return new Promise((resolve, reject) => {
+    const readable = fs.createReadStream(filepath)
+    const upload = bucket.openUploadStream(filename, {
+      metadata: { mimeType },
+    })
+    readable.pipe(upload)
+    upload.on('finish', () => resolve((upload.id as ObjectId).toString()))
+    upload.on('error', reject)
+  })
+}
+
 export async function fetchImageStream(imageId: string): Promise<{
   stream: NodeJS.ReadableStream
   mimeType: string
+  filename: string
+  size: number
 } | null> {
   try {
     const bucket = await getBucket()
@@ -39,7 +60,9 @@ export async function fetchImageStream(imageId: string): Promise<{
 
     return {
       stream: bucket.openDownloadStream(id),
-      mimeType: (file.metadata?.mimeType as string) ?? 'image/jpeg',
+      mimeType: (file.metadata?.mimeType as string) ?? 'application/octet-stream',
+      filename: file.filename,
+      size: file.length,
     }
   } catch {
     return null

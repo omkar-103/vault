@@ -1,17 +1,20 @@
 // pages/index.tsx
 import type { GetServerSideProps, NextPage } from 'next'
+import Head from 'next/head'
 import { useState, useEffect, useRef } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────
 
 type ViewType = 'broken' | 'login' | 'vault'
-type VaultId = 1 | 2 | 3 | 4
+type VaultId = 1 | 2 | 3 | 4 | 5
 
 interface VaultItem {
   _id: string
   title: string
   code: string
   imageId?: string | null
+  fileId?: string | null
+  externalUrl?: string | null
   createdAt: string
 }
 
@@ -81,7 +84,12 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const loginEndpoint = vaultId === 1 ? '/api/auth/login' : vaultId === 2 ? '/api/auth/login2' : vaultId === 3 ? '/api/auth/login3' : '/api/auth/login4'
+  const loginEndpoint = 
+    vaultId === 1 ? '/api/auth/login' : 
+    vaultId === 2 ? '/api/auth/login2' : 
+    vaultId === 3 ? '/api/auth/login3' : 
+    vaultId === 4 ? '/api/auth/login4' : 
+                    '/api/auth/login5'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,15 +118,15 @@ function LoginPage({ onSuccess, vaultId }: { onSuccess: () => void; vaultId: Vau
   }
 
   return (
-    <div style={base} className={vaultId === 4 || vaultId === 3 ? "vault4-container" : ""}>
-      {(vaultId === 4 || vaultId === 3) && (
+    <div style={base} className={vaultId === 4 || vaultId === 3 || vaultId === 5 ? "vault-dark-container" : ""}>
+      {(vaultId === 4 || vaultId === 3 || vaultId === 5) && (
         <style>{`
           html, body { background-color: #000 !important; }
-          .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
-          .vault4-container button { color: #fff !important; border-color: #fff !important; }
-          .vault4-container button:disabled { color: #666 !important; border-color: #666 !important; }
-          .vault4-container input { color: #fff !important; border-bottom-color: #fff !important; background: transparent !important; }
-          .vault4-container pre { color: #fff !important; }
+          .vault-dark-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
+          .vault-dark-container button { color: #fff !important; border-color: #fff !important; }
+          .vault-dark-container button:disabled { color: #666 !important; border-color: #666 !important; }
+          .vault-dark-container input { color: #fff !important; border-bottom-color: #fff !important; background: transparent !important; }
+          .vault-dark-container pre { color: #fff !important; }
         `}</style>
       )}
       <pre style={{ margin: '0 0 16px 0' }}>{`SYSTEM ARCHIVE
@@ -169,10 +177,22 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   const [searchCount, setSearchCount] = useState<number | null>(null)
   const [isSearchingPdf, setIsSearchingPdf] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<'file' | 'code'>(vaultId === 5 ? 'file' : 'code')
   const blobRefs = useRef<string[]>([])
 
-  const itemsEndpoint = vaultId === 1 ? '/api/vault/items' : vaultId === 2 ? '/api/vault2/items' : vaultId === 3 ? '/api/vault3/items' : '/api/vault4/items'
-  const logoutEndpoint = vaultId === 1 ? '/api/auth/logout' : vaultId === 2 ? '/api/auth/logout2' : vaultId === 3 ? '/api/auth/logout3' : '/api/auth/logout4'
+  const itemsEndpoint = 
+    vaultId === 1 ? '/api/vault/items' : 
+    vaultId === 2 ? '/api/vault2/items' : 
+    vaultId === 3 ? '/api/vault3/items' : 
+    vaultId === 4 ? '/api/vault4/items' : 
+                    '/api/vault5/items'
+  const logoutEndpoint = 
+    vaultId === 1 ? '/api/auth/logout' : 
+    vaultId === 2 ? '/api/auth/logout2' : 
+    vaultId === 3 ? '/api/auth/logout3' : 
+    vaultId === 4 ? '/api/auth/logout4' : 
+                    '/api/auth/logout5'
 
   const fetchItems = async () => {
     const res = await fetch(itemsEndpoint)
@@ -238,38 +258,83 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newTitle.trim() || !newCode.trim()) return
+    if (!newTitle.trim()) return
+    if (activeTab === 'code' && !newCode.trim()) return
+    if (activeTab === 'file' && !newFile) return
+
     setSaving(true)
     setStatus('Saving...')
+    setUploadProgress(0)
 
-    let imageId: string | null = null
+    try {
+      let imageId: string | null = null
+      let fileId: string | null = null
 
-    if (newFile) {
-      const fd = new FormData()
-      fd.append('image', newFile)
-      const up = await fetch('/api/upload', { method: 'POST', body: fd })
-      if (up.ok) imageId = (await up.json()).imageId
+      if (newFile) {
+        const formData = new FormData()
+        const uploadUrl = vaultId === 5 ? '/api/vault5/upload' : '/api/upload'
+        formData.append(vaultId === 5 ? 'file' : 'image', newFile)
+
+        const uploadedId = await new Promise<string>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', uploadUrl)
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100)
+              setUploadProgress(percent)
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const res = JSON.parse(xhr.responseText)
+              resolve(res.fileId || res.imageId)
+            } else {
+              reject(new Error('Upload failed'))
+            }
+          }
+
+          xhr.onerror = () => reject(new Error('Network error'))
+          xhr.send(formData)
+        })
+
+        if (vaultId === 5) fileId = uploadedId
+        else imageId = uploadedId
+      }
+
+      setUploadProgress(null)
+      setStatus('Finalizing...')
+
+      const res = await fetch(itemsEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            title: newTitle.trim(), 
+            code: activeTab === 'code' ? newCode : '', 
+            imageId,
+            fileId
+        }),
+      })
+
+      if (res.ok) {
+        setNewTitle('')
+        setNewCode('')
+        setNewFile(null)
+        setShowAdd(false)
+        await fetchItems()
+        setStatus('Saved.')
+        setTimeout(() => setStatus(''), 2000)
+      } else {
+        setStatus('Save failed.')
+      }
+    } catch (err) {
+      console.error(err)
+      setStatus('Error occurred.')
+    } finally {
+      setSaving(false)
+      setUploadProgress(null)
     }
-
-    const res = await fetch(itemsEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle.trim(), code: newCode, imageId }),
-    })
-
-    if (res.ok) {
-      setNewTitle('')
-      setNewCode('')
-      setNewFile(null)
-      setShowAdd(false)
-      await fetchItems()
-      setStatus('Saved.')
-      setTimeout(() => setStatus(''), 2000)
-    } else {
-      setStatus('Save failed.')
-    }
-
-    setSaving(false)
   }
 
   const deleteItem = async (id: string) => {
@@ -336,19 +401,19 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
   }
 
   return (
-    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 || vaultId === 3 ? "vault4-container" : ""}>
-      {(vaultId === 4 || vaultId === 3) && (
+    <div style={{ ...base, maxWidth: '860px' }} className={vaultId === 4 || vaultId === 3 || vaultId === 5 ? "vault-dark-container" : ""}>
+      {(vaultId === 4 || vaultId === 3 || vaultId === 5) && (
         <style>{`
           html, body { background-color: #000 !important; }
-          .vault4-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
-          .vault4-container button { color: #fff !important; border-color: #fff !important; }
-          .vault4-container button:disabled { color: #666 !important; border-color: #666 !important; }
-          .vault4-container input, .vault4-container textarea { color: #fff !important; border-color: #fff !important; background: #111 !important; }
-          .vault4-container hr { border-top-color: #fff !important; }
-          .vault4-container .vault-item { border-left-color: #fff !important; }
-          .vault4-container pre { color: #fff !important; }
-          .vault4-container pre.vault-code { background: #000 !important; color: #000 !important; border-color: #000 !important; }
-          .vault4-container pre.vault-code::selection { background: rgba(50, 151, 253, 0.5) !important; color: #fff !important; }
+          .vault-dark-container { background-color: #000 !important; color: #fff !important; min-height: 100vh; box-sizing: border-box; }
+          .vault-dark-container button, .vault-dark-container a.btn-link { color: #fff !important; border-color: #fff !important; }
+          .vault-dark-container button:disabled { color: #666 !important; border-color: #666 !important; }
+          .vault-dark-container input, .vault-dark-container textarea { color: #fff !important; border-color: #fff !important; background: #111 !important; }
+          .vault-dark-container hr { border-top-color: #fff !important; }
+          .vault-dark-container .vault-item { border-left-color: #fff !important; }
+          .vault-dark-container pre { color: #fff !important; }
+          .vault-dark-container pre.vault-code { background: #000 !important; color: #ccc !important; border-color: #333 !important; }
+          .vault-dark-container pre.vault-code::selection { background: rgba(50, 151, 253, 0.5) !important; color: #fff !important; }
         `}</style>
       )}
       {/* ── Header ── */}
@@ -384,7 +449,27 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
       {/* ── Add Item Form ── */}
       {showAdd && (
         <form onSubmit={handleAdd} style={{ marginBottom: '24px' }}>
-          <pre style={{ margin: '0 0 8px' }}>{'> NEW ITEM'}</pre>
+          <pre style={{ margin: '0 0 8px' }}>{`> NEW ${activeTab === 'file' ? 'FILE ASSET' : 'VAULT DATA'}`}</pre>
+          
+          {vaultId === 5 && (
+            <div style={{ marginBottom: '16px', display: 'flex', gap: '10px' }}>
+              <button 
+                type="button" 
+                onClick={() => setActiveTab('file')}
+                style={{ ...btn, background: activeTab === 'file' ? '#333' : 'transparent', color: activeTab === 'file' ? '#fff' : 'inherit' }}
+              >
+                [ SECTION 1: HIGH END FILES ]
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setActiveTab('code')}
+                style={{ ...btn, background: activeTab === 'code' ? '#333' : 'transparent', color: activeTab === 'code' ? '#fff' : 'inherit' }}
+              >
+                [ SECTION 2: VAULT STORE ]
+              </button>
+            </div>
+          )}
+
           <div style={{ marginBottom: '8px' }}>
             <span>{'TITLE:  '}</span>
             <input
@@ -395,43 +480,69 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
               autoFocus
             />
           </div>
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ marginBottom: '4px' }}>CODE:</div>
-            <textarea
-              value={newCode}
-              onChange={e => setNewCode(e.target.value)}
-              style={{
-                fontFamily: MONO,
-                fontSize: '13px',
-                width: '100%',
-                minHeight: '140px',
-                boxSizing: 'border-box',
-                background: '#f8f8f8',
-                border: '1px solid #999',
-                padding: '8px',
-                resize: 'vertical',
-                color: '#000',
-                outline: 'none',
-              }}
-              placeholder="Paste code here..."
-            />
-          </div>
-          <div style={{ marginBottom: '10px' }}>
-            <span>{'IMAGE: '}</span>
-            <input
-              type="file"
-              accept="image/*"
-              style={{ fontFamily: MONO, fontSize: '13px' }}
-              onChange={e => setNewFile(e.target.files?.[0] ?? null)}
-            />
-            {newFile && (
-              <span style={{ marginLeft: '8px', color: '#555' }}>
-                {newFile.name}
-              </span>
-            )}
-          </div>
+
+          {activeTab === 'code' && (
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ marginBottom: '4px' }}>CODE:</div>
+              <textarea
+                value={newCode}
+                onChange={e => setNewCode(e.target.value)}
+                style={{
+                  fontFamily: MONO,
+                  fontSize: '13px',
+                  width: '100%',
+                  minHeight: '140px',
+                  boxSizing: 'border-box',
+                  background: (vaultId === 4 || vaultId === 3 || vaultId === 5) ? '#111' : '#f8f8f8',
+                  border: '1px solid #999',
+                  padding: '8px',
+                  resize: 'vertical',
+                  color: (vaultId === 4 || vaultId === 3 || vaultId === 5) ? '#fff' : '#000',
+                  outline: 'none',
+                }}
+                placeholder="Paste code here..."
+              />
+            </div>
+          )}
+
+          {activeTab === 'file' && (
+            <div style={{ marginBottom: '10px' }}>
+              <span>{'FILE:   '}</span>
+              <input
+                type="file"
+                accept="*"
+                style={{ fontFamily: MONO, fontSize: '13px' }}
+                onChange={e => setNewFile(e.target.files?.[0] ?? null)}
+              />
+              {newFile && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: '#aaa' }}>
+                  {newFile.name} ({(newFile.size / 1024 / 1024).toFixed(2)} MB)
+                </div>
+              )}
+            </div>
+          )}
+
+          {vaultId !== 5 && activeTab === 'code' && (
+             <div style={{ marginBottom: '10px' }}>
+                <span>{'IMAGE: '}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ fontFamily: MONO, fontSize: '13px' }}
+                  onChange={e => setNewFile(e.target.files?.[0] ?? null)}
+                />
+             </div>
+          )}
+
+          {uploadProgress !== null && (
+            <div style={{ margin: '14px 0', width: '100%', background: '#222', height: '4px' }}>
+                <div style={{ width: `${uploadProgress}%`, background: '#fff', height: '100%', transition: 'width 0.2s' }} />
+                <div style={{ fontSize: '10px', marginTop: '4px', fontFamily: MONO }}>UPLOAD PROGRESS: {uploadProgress}%</div>
+            </div>
+          )}
+
           <button type="submit" disabled={saving} style={btn}>
-            {saving ? '> Storing...' : '> [ STORE ITEM ]'}
+            {saving ? '> Processing...' : `> [ STORE ${activeTab === 'file' ? 'FILE' : 'ITEM'} ]`}
           </button>
         </form>
       )}
@@ -464,13 +575,15 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
           </div>
 
           <div style={{ marginBottom: '6px' }}>
-            <button
-              onClick={() => copyCode(item)}
-              style={btn}
-            >
-              {copiedId === item._id ? '> [ COPIED ]' : '> [ COPY CODE ]'}
-            </button>
-            {' '}
+            {item.code && (
+              <button
+                onClick={() => copyCode(item)}
+                style={btn}
+              >
+                {copiedId === item._id ? '> [ COPIED ]' : '> [ COPY CODE ]'}
+              </button>
+            )}
+            {item.code && (item.imageId || item.fileId) && ' '}
             {item.imageId && (
               <button
                 onClick={() => loadImage(item.imageId!)}
@@ -478,6 +591,28 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
               >
                 {'> [ LOAD IMAGE ]'}
               </button>
+            )}
+            {item.imageId && item.fileId && ' '}
+            {item.fileId && (
+              <a
+                href={`/api/photo?id=${item.fileId}`}
+                download
+                className="btn-link"
+                style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}
+              >
+                {'> [ DOWNLOAD FILE ]'}
+              </a>
+            )}
+            {item.externalUrl && (
+              <a
+                href={item.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-link"
+                style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}
+              >
+                {'> [ DOWNLOAD FROM DRIVE ]'}
+              </a>
             )}
             {' '}
             <button
@@ -488,20 +623,22 @@ function VaultPage({ onLogout, vaultId }: { onLogout: () => void; vaultId: Vault
             </button>
           </div>
 
-          <pre
-            className="vault-code"
-            style={{
-              margin: '8px 0 0',
-              background: '#f4f4f4',
-              padding: '10px',
-              overflowX: 'auto',
-              border: '1px solid #ddd',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {item.code}
-          </pre>
+          {item.code && (
+            <pre
+              className="vault-code"
+              style={{
+                margin: '8px 0 0',
+                background: '#f4f4f4',
+                padding: '10px',
+                overflowX: 'auto',
+                border: '1px solid #ddd',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {item.code}
+            </pre>
+          )}
 
           {item.imageId && images[item.imageId] && (
             <div style={{ marginTop: '10px' }}>
@@ -699,7 +836,8 @@ const Home: NextPage<PageProps> = ({ initialView, vaultId }) => {
           vaultId === 1 ? '/api/auth/logout' : 
           vaultId === 2 ? '/api/auth/logout2' : 
           vaultId === 3 ? '/api/auth/logout3' :
-                          '/api/auth/logout4';
+          vaultId === 4 ? '/api/auth/logout4' :
+                          '/api/auth/logout5';
                           
         fetch(logoutEndpoint, { method: 'POST' }).catch(() => {});
       }
@@ -711,23 +849,34 @@ const Home: NextPage<PageProps> = ({ initialView, vaultId }) => {
 
   if (view === 'login') {
     return (
-      <LoginPage
-        vaultId={vaultId}
-        onSuccess={() => setView('vault')}
-      />
+      <>
+        <Head><title>503 Service Unavailable</title></Head>
+        <LoginPage
+          vaultId={vaultId}
+          onSuccess={() => setView('vault')}
+        />
+      </>
     )
   }
 
   if (view === 'vault') {
     return (
-      <VaultPage
-        vaultId={vaultId}
-        onLogout={() => setView('broken')}
-      />
+      <>
+        <Head><title>503 Service Unavailable</title></Head>
+        <VaultPage
+          vaultId={vaultId}
+          onLogout={() => setView('broken')}
+        />
+      </>
     )
   }
 
-  return <BrokenPage />
+  return (
+    <>
+      <Head><title>503 Service Unavailable</title></Head>
+      <BrokenPage />
+    </>
+  )
 }
 
 export default Home
@@ -759,6 +908,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
   if (ctx.resolvedUrl?.includes(process.env.VAULT4_ACCESS_KEY || '?444')) {
     const valid = await checkSession('vault4_token', 'sessions4')
     return { props: { initialView: valid ? 'vault' : 'login', vaultId: 4 } }
+  }
+
+  // ── Vault 5 (?555) SHORT URL ──────────────────────────────────
+  if (ctx.resolvedUrl?.includes(process.env.VAULT5_ACCESS_KEY || '?555')) {
+    const valid = await checkSession('vault5_token', 'sessions5')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 5 } }
   }
 
   // sys must always be 'repair' — otherwise show broken page
