@@ -12,11 +12,15 @@ const NEEDED = new Set([
     'sessions3',
     'vaultitems4',
     'sessions4',
+    'vaultitems5',
+    'sessions5',
     'vaultitems',
     'vaultitems2',
     'vaultitems3',
     'fs.files',
     'fs.chunks',
+    'vault_images.files',
+    'vault_images.chunks',
 ])
 
 async function main() {

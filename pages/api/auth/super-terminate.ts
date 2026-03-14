@@ -8,6 +8,7 @@ const ALL_VAULTS = [
     { cookie: 'vault2_token', collection: 'sessions2' },
     { cookie: 'vault3_token', collection: 'sessions3' },
     { cookie: 'vault4_token', collection: 'sessions4' },
+    { cookie: 'vault5_token', collection: 'sessions5' },
 ]
 
 async function getValidToken(req: NextApiRequest): Promise<{ token: string; collection: string } | null> {

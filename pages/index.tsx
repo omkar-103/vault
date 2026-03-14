@@ -904,6 +904,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (ctx) => 
     return { props: { initialView: valid ? 'vault' : 'login', vaultId: 1 } }
   }
 
+  // ── Vault 2 (?222) SHORT URL ──────────────────────────────────
+  if (ctx.resolvedUrl?.includes(process.env.VAULT2_ACCESS_KEY || '?222')) {
+    const valid = await checkSession('vault2_token', 'sessions2')
+    return { props: { initialView: valid ? 'vault' : 'login', vaultId: 2 } }
+  }
+
   // ── Vault 3 (?333) SHORT URL ──────────────────────────────────
   if (ctx.resolvedUrl?.includes(process.env.VAULT3_ACCESS_KEY || '?333')) {
     const valid = await checkSession('vault3_token', 'sessions3')

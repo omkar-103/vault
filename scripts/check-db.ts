@@ -12,6 +12,8 @@ const NEEDED = new Set([
     'sessions3',   // Vault 3 sessions
     'vaultitems4', // Vault 4 data
     'sessions4',   // Vault 4 sessions
+    'vaultitems5', // Vault 5 data
+    'sessions5',   // Vault 5 sessions
     'vaultitems',  // Vault 1 items
     'vaultitems2', // Vault 2 items
     'vaultitems3', // Vault 3 items

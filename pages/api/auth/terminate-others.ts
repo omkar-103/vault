@@ -9,6 +9,7 @@ const VAULT_MAP: Record<string, { cookie: string; collection: string }> = {
     '2': { cookie: 'vault2_token', collection: 'sessions2' },
     '3': { cookie: 'vault3_token', collection: 'sessions3' },
     '4': { cookie: 'vault4_token', collection: 'sessions4' },
+    '5': { cookie: 'vault5_token', collection: 'sessions5' },
 }
 
 async function isValidToken(token: string, collection: string): Promise<boolean> {
